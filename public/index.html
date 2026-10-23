@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="description" content="Khata — track worker wages, attendance, advances, and payables right from your phone.">
+  <title>Khata</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <header class="top">
+    <div class="t1">
+      <div class="brand">
+        <h1>📒 Khata</h1>
+        <div id="netStatus" class="net-pill online" title="Sync Status">
+          <span class="net-dot"></span>
+          <span id="netTxt">Connecting...</span>
+        </div>
+      </div>
+      <button class="ib" data-act="menu" aria-label="Menu">⋮</button>
+    </div>
+    <div class="t2">
+      <select id="wsel" aria-label="Worker"></select>
+      <div class="mn">
+        <button data-act="mp" aria-label="Previous month">‹</button>
+        <span id="ml"></span>
+        <button data-act="mnx" aria-label="Next month">›</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="view"></main>
+  <div id="fabw"></div>
+  <nav class="nav" id="nav"></nav>
+  <div id="sheet"></div>
+  <input type="file" id="file" accept=".json,application/json" hidden>
+
+  <script src="app.js"></script>
+</body>
+</html>
