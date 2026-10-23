@@ -13,6 +13,9 @@ app.use(express.json());
 /* ── Serve the frontend (from public folder) ── */
 app.use(express.static(path.join(__dirname, "public")));
 
+/* ── Health check endpoint for keep-alive / cron ── */
+app.get("/health", (req, res) => res.status(200).send("OK"));
+
 /* ── API routes ── */
 app.use("/api/workers", require("./routes/workers"));
 app.use("/api/bills",   require("./routes/bills"));
