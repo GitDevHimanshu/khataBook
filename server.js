@@ -32,9 +32,19 @@ app.get("/api/backup", async (req, res) => {
       Bill.find().lean(),
     ]);
     res.json({
-      workers: workers.map(w => ({ ...w, id: w._id })),
+      workers: workers.map(w => ({
+        ...w,
+        id: w._id,
+        rate: +w.rate || 0,
+        openAdv: +w.openAdv || 0,
+        openPay: +w.openPay || 0,
+        att: (w.att && typeof w.att === "object") ? w.att : {},
+        adv: Array.isArray(w.adv) ? w.adv : [],
+        pay: Array.isArray(w.pay) ? w.pay : [],
+        rates: Array.isArray(w.rates) ? w.rates : [],
+      })),
       cur: null,
-      bill:    bill.map(b => ({ ...b, id: b._id })),
+      bill: bill.map(b => ({ ...b, id: b._id })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

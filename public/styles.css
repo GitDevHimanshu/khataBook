@@ -439,7 +439,7 @@ main {
   color: var(--bad);
 }
 
-/* ── Worker List Item ── */
+/* ── Worker List Item & Card ── */
 .wk {
   display: flex;
   justify-content: space-between;
@@ -463,6 +463,132 @@ main {
 
 .wk:active {
   transform: scale(0.98);
+}
+
+/* Modern Worker Card with Actions */
+.wk-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  margin-bottom: 12px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, border-color 0.2s;
+}
+
+.wk-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.wk-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.wk-top:active {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.wk-top .nm {
+  flex: 1;
+  min-width: 0;
+}
+
+.wk-top .nm b {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+.wk-bal {
+  text-align: right;
+  flex: none;
+}
+
+.wk-bal small {
+  color: var(--mute);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.wk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(248, 250, 252, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .wk-actions {
+    background: rgba(15, 23, 42, 0.35);
+  }
+}
+
+.wk-btn {
+  border: 1px solid var(--card-border);
+  background: var(--bg);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wk-btn:active {
+  transform: scale(0.94);
+}
+
+.wk-btn.open-btn {
+  flex: 1;
+  justify-content: center;
+  color: var(--pri2);
+  background: var(--pri-light);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.wk-btn.edit {
+  color: var(--pri2);
+  background: var(--pri-light);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.wk-btn.edit:hover {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.wk-btn.del {
+  color: var(--bad);
+  background: var(--badbg);
+  border-color: var(--badborder);
+}
+
+.wk-btn.del:hover {
+  background: #ffe4e6;
+}
+
+.wk-btn.del.armed {
+  background: var(--bad);
+  color: #ffffff;
+  border-color: var(--bad);
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.4);
 }
 
 .av {
@@ -563,27 +689,26 @@ main {
 .wa-btn {
   background: linear-gradient(135deg, #25d366 0%, #128c7e 100%) !important;
   color: #ffffff !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  padding: 0 12px !important;
+  width: 36px !important;
   height: 36px !important;
+  padding: 0 !important;
   border-radius: 12px !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 5px !important;
+  justify-content: center !important;
   border: 0 !important;
   box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35) !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .wa-btn:active {
-  transform: scale(0.94) !important;
+  transform: scale(0.92) !important;
   box-shadow: 0 2px 6px rgba(37, 211, 102, 0.25) !important;
 }
 
 .wa-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
   fill: currentColor;
   flex-shrink: 0;
 }

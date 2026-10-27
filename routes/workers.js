@@ -3,7 +3,20 @@ const router = express.Router();
 const Worker = require("../models/Worker");
 
 /* ── helper: normalize a worker doc for the frontend ── */
-const fmt = w => ({ ...w, id: w._id });
+const fmt = w => {
+  if (!w) return null;
+  return {
+    ...w,
+    id: w._id,
+    rate: +w.rate || 0,
+    openAdv: +w.openAdv || 0,
+    openPay: +w.openPay || 0,
+    att: (w.att && typeof w.att === "object") ? w.att : {},
+    adv: Array.isArray(w.adv) ? w.adv : [],
+    pay: Array.isArray(w.pay) ? w.pay : [],
+    rates: Array.isArray(w.rates) ? w.rates : [],
+  };
+};
 
 /* ────────────────────────────────────────
    Workers CRUD

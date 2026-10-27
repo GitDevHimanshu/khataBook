@@ -88,27 +88,49 @@ const api = {
 };
 
 /* ── Formatting helpers ── */
-const money = n => "₹" + Math.round(n).toLocaleString("en-IN");
+const money = n => "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN");
 const esc = s =>
   String(s ?? "").replace(
     /[&<>"]/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
   );
-const fmtD = d =>
-  new Date(d + "T00:00").toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+const fmtD = d => {
+  if (!d) return "";
+  const parsed = new Date(d + "T00:00");
+  return isNaN(parsed.getTime())
+    ? String(d)
+    : parsed.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+};
 
 /* ── Attendance weights ── */
 const W = { P: 1, H: 0.5, A: 0 };
 
+/* ── Worker data normalizer ── */
+function normalizeWorker(w) {
+  if (!w) return null;
+  if (!w.att || typeof w.att !== "object") w.att = {};
+  if (!Array.isArray(w.adv)) w.adv = [];
+  if (!Array.isArray(w.pay)) w.pay = [];
+  if (!Array.isArray(w.rates)) w.rates = [];
+  w.rate = +w.rate || 0;
+  w.openAdv = +w.openAdv || 0;
+  w.openPay = +w.openPay || 0;
+  return w;
+}
+
 /* ── Current worker ── */
-const cw = () => S.workers.find(w => w.id === S.cur) || null;
+const cw = () => {
+  const w = S.workers.find(x => x.id === S.cur);
+  return w ? normalizeWorker(w) : null;
+};
 
 /* ── Rate lookup (supports historical rates) ── */
 function rateFor(w, k, e) {
+  if (!w) return 0;
   let r = null;
   if (w.rates)
     for (const x of w.rates)
@@ -120,23 +142,35 @@ function rateFor(w, k, e) {
 function earned(w, p) {
   let d = 0,
     t = 0;
+  if (!w) return { d: 0, w: 0 };
+  normalizeWorker(w);
   for (const k in w.att) {
     if (p && !k.startsWith(p)) continue;
     const e = w.att[k];
-    d += W[e.s];
-    t += W[e.s] * rateFor(w, k, e);
+    if (!e) continue;
+    const weight = W[e.s] ?? 0;
+    d += weight;
+    t += weight * rateFor(w, k, e);
   }
   return { d, w: t };
 }
 
 const sumL = (a, p) =>
-  a.filter(x => !p || x.date.startsWith(p)).reduce((t, x) => t + x.amt, 0);
+  (a || [])
+    .filter(x => x && (!p || (x.date && x.date.startsWith(p))))
+    .reduce((t, x) => t + (+x.amt || 0), 0);
 
 const balance = w =>
-  earned(w).w + (w.openPay || 0) - (w.openAdv || 0) - sumL(w.adv) - sumL(w.pay);
+  !w
+    ? 0
+    : earned(w).w +
+      (w.openPay || 0) -
+      (w.openAdv || 0) -
+      sumL(w.adv) -
+      sumL(w.pay);
 
 const owed = () =>
-  S.bill.filter(b => !b.paid).reduce((t, b) => t + b.amt, 0);
+  (S.bill || []).filter(b => b && !b.paid).reduce((t, b) => t + (+b.amt || 0), 0);
 
 const cls = n => (n >= 0 ? "good" : "bad");
 
@@ -161,11 +195,33 @@ function home() {
     S.workers.length
       ? S.workers
           .map(
-            w => `<button class="wk" data-act="open" data-id="${w.id}">
-        <div class="av">${esc(w.name.trim().charAt(0).toUpperCase() || "?")}</div>
-        <div class="nm"><b>${esc(w.name)}</b><small>${money(w.rate)}/day · ${earned(w, M).d} days this month</small></div>
-        <div style="text-align:right"><div class="amt ${cls(balance(w))}">${money(balance(w))}</div><small>due</small></div>
-      </button>`
+            w => {
+              const isDelArmed = armed === "dw" + w.id;
+              return `<div class="wk-card">
+        <div class="wk-top" data-act="open" data-id="${w.id}" title="Tap to view attendance & details">
+          <div class="av">${esc(w.name.trim().charAt(0).toUpperCase() || "?")}</div>
+          <div class="nm">
+            <b>${esc(w.name)}</b>
+            <small>${money(w.rate)}/day · ${earned(w, M).d} days this month</small>
+          </div>
+          <div class="wk-bal">
+            <div class="amt ${cls(balance(w))}">${money(balance(w))}</div>
+            <small>due</small>
+          </div>
+        </div>
+        <div class="wk-actions">
+          <button class="wk-btn open-btn" data-act="open" data-id="${w.id}" title="Open worker attendance">
+            <span>📅 Attendance</span>
+          </button>
+          <button class="wk-btn edit" data-act="editw" data-id="${w.id}" aria-label="Edit ${esc(w.name)}" title="Edit worker details">
+            <span>✎ Edit</span>
+          </button>
+          <button class="wk-btn del ${isDelArmed ? "armed" : ""}" data-act="delw" data-id="${w.id}" aria-label="Delete ${esc(w.name)}" title="Delete worker">
+            <span>${isDelArmed ? "⚠️ Sure? Tap to delete" : "🗑 Delete"}</span>
+          </button>
+        </div>
+      </div>`;
+            }
           )
           .join("")
       : '<div class="empty">No workers yet.<br>Add your first worker to start.</div>'
@@ -182,7 +238,6 @@ function head(w) {
       <div style="display:flex;gap:6px;align-items:center">
         <button class="ib wa-btn" data-act="wa" data-id="${w.id}" aria-label="Share WhatsApp Slip" title="Send Slip via WhatsApp">
           <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67M9.11 7.43C8.94 7.43 8.68 7.5 8.45 7.74C8.22 8 7.56 8.62 7.56 9.87C7.56 11.13 8.48 12.33 8.61 12.5C8.74 12.67 10.42 15.27 13 16.38C13.62 16.65 14.1 16.81 14.48 16.93C15.1 17.13 15.66 17.1 16.11 17.03C16.61 16.96 17.65 16.4 17.86 15.8C18.08 15.2 18.08 14.69 18.01 14.58C17.95 14.47 17.79 14.4 17.53 14.27C17.27 14.14 15.99 13.51 15.75 13.43C15.52 13.34 15.35 13.3 15.18 13.56C15 13.82 14.5 14.4 14.35 14.58C14.2 14.75 14.05 14.77 13.79 14.64C13.53 14.51 12.7 14.24 11.72 13.37C10.95 12.69 10.43 11.84 10.28 11.59C10.13 11.33 10.26 11.19 10.39 11.06C10.51 10.95 10.65 10.76 10.79 10.6C10.92 10.43 10.96 10.31 11.05 10.13C11.14 9.96 11.09 9.81 11.03 9.68C10.96 9.55 10.45 8.3 10.24 7.79C10.03 7.28 9.82 7.36 9.66 7.35C9.52 7.35 9.35 7.43 9.11 7.43Z"/></svg>
-          Slip
         </button>
         <button class="ib" data-act="editw" aria-label="Edit worker" style="width:auto;padding:0 12px;font-size:14px">✎ Edit</button>
       </div>
@@ -233,6 +288,7 @@ const need = () =>
 function att() {
   const w = cw();
   if (!w) return need();
+  normalizeWorker(w);
   const [y, mo] = M.split("-").map(Number),
     first = new Date(y, mo - 1, 1).getDay(),
     n = new Date(y, mo, 0).getDate(),
@@ -243,7 +299,7 @@ function att() {
       .join("") + "<div></div>".repeat(first);
   for (let d = 1; d <= n; d++) {
     const k = M + "-" + String(d).padStart(2, "0"),
-      e = w.att[k];
+      e = w.att ? w.att[k] : undefined;
     h += `<button class="day ${e ? e.s : ""} ${k === t ? "T" : ""}" data-act="day" data-v="${k}" aria-label="${fmtD(k)}">${d}<i>${e ? (e.s === "H" ? "½" : e.s) : ""}</i></button>`;
   }
   return (
@@ -267,12 +323,14 @@ function att() {
 function ledger(kind, label) {
   const w = cw();
   if (!w) return need();
-  const it = w[kind]
-    .filter(x => x.date.startsWith(M))
-    .sort((a, b) => b.date.localeCompare(a.date));
+  normalizeWorker(w);
+  const items = w[kind] || [];
+  const it = items
+    .filter(x => x && x.date && x.date.startsWith(M))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   return (
     head(w) +
-    `<div class="card"><b>${label}s in this month · ${money(it.reduce((t, x) => t + x.amt, 0))}</b>${
+    `<div class="card"><b>${label}s in this month · ${money(it.reduce((t, x) => t + (+x.amt || 0), 0))}</b>${
       it.length
         ? it
             .map(
@@ -289,7 +347,7 @@ function ledger(kind, label) {
 
 function bills() {
   const t = iso(today),
-    it = [...S.bill].sort((a, b) => a.paid - b.paid || a.due.localeCompare(b.due));
+    it = [...(S.bill || [])].sort((a, b) => (a.paid ? 1 : 0) - (b.paid ? 1 : 0) || (a.due || "").localeCompare(b.due || ""));
   return `<div class="card hero"><small>Total payables still owed</small><b>${money(owed())}</b></div>
   <div class="card">${
     it.length
@@ -331,7 +389,7 @@ function sheet() {
       }
       <div class="g2">${fld("s-oadv", "Opening advance (₹)", "number", w?.openAdv || "", "Already given")}${fld("s-opay", "Opening payable (₹)", "number", w?.openPay || "", "Wages owed")}</div>
       <div class="sm" style="margin-bottom:12px">Opening advance = money already given before using this app. Opening payable = wages you already owed.</div>
-      <div class="stack"><button class="btn" data-act="savew">Save</button>${w ? `<button class="btn alt" style="background:#25d366;color:#fff;border-color:#25d366;display:flex;align-items:center;justify-content:center;gap:6px" data-act="wa" data-id="${w.id}">💬 Share WhatsApp Slip</button><button class="btn red" data-act="delw">Delete worker</button>` : ""}</div>`;
+      <div class="stack"><button class="btn" data-act="savew">Save</button>${w ? `<button class="btn alt" style="background:#25d366;color:#fff;border-color:#25d366;display:flex;align-items:center;justify-content:center;gap:6px" data-act="wa" data-id="${w.id}">Share Slip</button><button class="btn red" data-act="delw" data-id="${w.id}">${armed === "dw" + w.id ? "⚠️ Tap again to delete" : "Delete worker"}</button>` : ""}</div>`;
   } else if (sh.t === "raise") {
     const w = S.workers.find(x => x.id === sh.id),
       hist = (w.rates || []).filter(x => x.from > "0001");
@@ -380,46 +438,69 @@ function sheet() {
    Main render function
 ════════════════════════════════════════ */
 function render() {
-  $("wsel").innerHTML = S.workers.length
-    ? S.workers
-        .map(
-          w =>
-            `<option value="${w.id}" ${w.id === S.cur ? "selected" : ""}>${esc(w.name)}</option>`
-        )
-        .join("")
-    : "<option>No workers yet</option>";
-  $("wsel").disabled = !S.workers.length;
+  try {
+    const wsel = $("wsel");
+    if (wsel) {
+      wsel.innerHTML = S.workers.length
+        ? S.workers
+            .map(
+              w =>
+                `<option value="${w.id}" ${w.id === S.cur ? "selected" : ""}>${esc(w.name)}</option>`
+            )
+            .join("")
+        : "<option>No workers yet</option>";
+      wsel.disabled = !S.workers.length;
+    }
 
-  const [y, mo] = M.split("-").map(Number);
-  $("ml").textContent = new Date(y, mo - 1, 1).toLocaleDateString("en-IN", {
-    month: "short",
-    year: "numeric",
-  });
+    const [y, mo] = M.split("-").map(Number);
+    const ml = $("ml");
+    if (ml) {
+      ml.textContent = new Date(y, mo - 1, 1).toLocaleDateString("en-IN", {
+        month: "short",
+        year: "numeric",
+      });
+    }
 
-  $("view").innerHTML =
-    tab === "home"
-      ? home()
-      : tab === "att"
-      ? att()
-      : tab === "adv"
-      ? ledger("adv", "Advance")
-      : tab === "pay"
-      ? ledger("pay", "Payment")
-      : bills();
+    const nav = $("nav");
+    if (nav) {
+      nav.innerHTML = NAV.map(
+        ([k, i, l]) =>
+          `<button data-act="tab" data-v="${k}" aria-current="${k === tab}"><span>${i}</span>${l}</button>`
+      ).join("");
+    }
 
-  $("nav").innerHTML = NAV.map(
-    ([k, i, l]) =>
-      `<button data-act="tab" data-v="${k}" aria-current="${k === tab}"><span>${i}</span>${l}</button>`
-  ).join("");
+    const view = $("view");
+    if (view) {
+      view.innerHTML =
+        tab === "home"
+          ? home()
+          : tab === "att"
+          ? att()
+          : tab === "adv"
+          ? ledger("adv", "Advance")
+          : tab === "pay"
+          ? ledger("pay", "Payment")
+          : bills();
+    }
 
-  $("fabw").innerHTML =
-    (tab === "adv" || tab === "pay") && cw()
-      ? `<button class="fab" data-act="adde">+ Add ${tab === "adv" ? "advance" : "payment"}</button>`
-      : tab === "bill"
-      ? '<button class="fab" data-act="addb">+ Add payable</button>'
-      : "";
+    const fabw = $("fabw");
+    if (fabw) {
+      fabw.innerHTML =
+        (tab === "adv" || tab === "pay") && cw()
+          ? `<button class="fab" data-act="adde">+ Add ${tab === "adv" ? "advance" : "payment"}</button>`
+          : tab === "bill"
+          ? '<button class="fab" data-act="addb">+ Add payable</button>'
+          : "";
+    }
 
-  $("sheet").innerHTML = sheet();
+    const sheetEl = $("sheet");
+    if (sheetEl) {
+      sheetEl.innerHTML = sheet();
+    }
+  } catch (err) {
+    console.error("Render error:", err);
+    note("Render error: " + err.message);
+  }
 }
 
 /* ── Helpers ── */
@@ -480,7 +561,13 @@ document.addEventListener("click", async e => {
     else if (a === "mp")    shiftM(-1);
     else if (a === "mnx")   shiftM(1);
     else if (a === "addw")  { sh = { t: "worker" }; render(); }
-    else if (a === "editw") { sh = { t: "worker", id: S.cur }; render(); }
+    else if (a === "editw") {
+      const wid = id || S.cur;
+      if (wid) S.cur = wid;
+      sh = { t: "worker", id: wid };
+      armed = null;
+      render();
+    }
     else if (a === "wa")    { const target = S.workers.find(x => x.id === (id || S.cur)); if (target) sendWorkerSlip(target); }
     else if (a === "adde")  { sh = { t: "entry", k: tab }; render(); }
     else if (a === "addb")  { sh = { t: "bill" }; render(); }
@@ -490,6 +577,8 @@ document.addEventListener("click", async e => {
 
     /* ── Attendance ── */
     else if (a === "day") {
+      if (!w) return;
+      if (!w.att || typeof w.att !== "object") w.att = {};
       const e2 = w.att[v];
       if (mode === "C") {
         delete w.att[v];
@@ -510,13 +599,14 @@ document.addEventListener("click", async e => {
       const d = { name: n, openAdv: num("s-oadv"), openPay: num("s-opay") };
       if (sh.id) {
         const wid = sh.id;
-        Object.assign(S.workers.find(x => x.id === wid), d);
+        const target = S.workers.find(x => x.id === wid);
+        if (target) Object.assign(target, d);
         sh = null; render();
         await api.put(`/api/workers/${wid}`, d);
       } else {
         const nid  = uid();
         const rate = num("s-rate");
-        S.workers.push(Object.assign({ id: nid, att: {}, adv: [], pay: [], rate }, d));
+        S.workers.push(normalizeWorker(Object.assign({ id: nid, att: {}, adv: [], pay: [], rate }, d)));
         S.cur = nid; tab = "att"; sh = null; render();
         await api.post("/api/workers", { id: nid, rate, ...d });
       }
@@ -528,6 +618,7 @@ document.addEventListener("click", async e => {
       if (!nr || !fr) { (nr ? $("s-from") : $("s-rate")).focus(); return; }
       const wid = sh.id;
       const x   = S.workers.find(q => q.id === wid);
+      if (!x) return;
       if (!x.rates) x.rates = [{ from: "0000-01-01", rate: +x.rate || 0 }];
       x.rates = x.rates.filter(q => q.from !== fr);
       x.rates.push({ from: fr, rate: nr });
@@ -542,7 +633,8 @@ document.addEventListener("click", async e => {
       if (armed !== "r" + v) { armed = "r" + v; render(); return; }
       const wid = sh.id;
       const x   = S.workers.find(q => q.id === wid);
-      x.rates   = x.rates.filter(q => q.from !== v);
+      if (!x) return;
+      x.rates   = (x.rates || []).filter(q => q.from !== v);
       if (x.rates.length < 2) {
         x.rate = x.rates[0] ? x.rates[0].rate : x.rate;
         delete x.rates;
@@ -555,12 +647,22 @@ document.addEventListener("click", async e => {
 
     /* ── Delete worker ── */
     else if (a === "delw") {
-      if (armed !== "dw") { armed = "dw"; el.textContent = "Tap again to delete"; return; }
-      const wid = sh.id;
+      const wid = id || (sh && sh.id) || S.cur;
+      if (!wid) return;
+      const armKey = "dw" + wid;
+      if (armed !== armKey) {
+        armed = armKey;
+        render();
+        return;
+      }
       S.workers = S.workers.filter(x => x.id !== wid);
       S.cur = S.workers[0] ? S.workers[0].id : null;
-      tab = "home"; sh = null; armed = null; render();
+      if (tab !== "home" && !S.cur) tab = "home";
+      sh = null;
+      armed = null;
+      render();
       await api.del(`/api/workers/${wid}`);
+      note("Worker deleted.");
     }
 
     /* ── Save advance or payment entry ── */
@@ -569,6 +671,8 @@ document.addEventListener("click", async e => {
       if (!amt || !d) { $("s-amt").focus(); return; }
       const entry  = { id: uid(), date: d, amt, note: $("s-note").value.trim() };
       const kind   = sh.k;                              // "adv" | "pay"
+      if (!w) return;
+      if (!Array.isArray(w[kind])) w[kind] = [];
       const wid    = w.id;
       w[kind].push(entry);
       sh = null; render();
@@ -581,6 +685,7 @@ document.addEventListener("click", async e => {
       const n = $("s-who").value.trim(), amt = num("s-amt");
       if (!n || !amt) { (n ? $("s-amt") : $("s-who")).focus(); return; }
       const bill = { id: uid(), who: n, amt, due: $("s-due").value || iso(today), paid: false };
+      if (!Array.isArray(S.bill)) S.bill = [];
       S.bill.push(bill);
       sh = null; render();
       await api.post("/api/bills", bill);
@@ -590,6 +695,8 @@ document.addEventListener("click", async e => {
     else if (a === "del") {
       if (armed !== id) { armed = id; render(); return; }
       const kind = tab;          // "adv" | "pay"
+      if (!w) return;
+      if (!Array.isArray(w[kind])) w[kind] = [];
       const wid  = w.id;
       w[kind] = w[kind].filter(x => x.id !== id);
       armed = null; render();
@@ -599,16 +706,18 @@ document.addEventListener("click", async e => {
 
     /* ── Toggle bill paid ── */
     else if (a === "tog") {
-      const b = S.bill.find(q => q.id === id);
-      b.paid = !b.paid;
-      render();
-      await api.put(`/api/bills/${id}/toggle`);
+      const b = (S.bill || []).find(q => q.id === id);
+      if (b) {
+        b.paid = !b.paid;
+        render();
+        await api.put(`/api/bills/${id}/toggle`);
+      }
     }
 
     /* ── Delete bill ── */
     else if (a === "delb") {
       if (armed !== id) { armed = id; render(); return; }
-      S.bill = S.bill.filter(x => x.id !== id);
+      S.bill = (S.bill || []).filter(x => x.id !== id);
       armed = null; render();
       await api.del(`/api/bills/${id}`);
     }
@@ -630,18 +739,22 @@ document.addEventListener("click", async e => {
     /* ── Export CSV (client-side, no API needed) ── */
     else if (a === "exp") {
       const rows = [["Worker", "Type", "Date", "Detail", "Amount"]];
-      S.workers.forEach(x => {
+      (S.workers || []).forEach(x => {
+        normalizeWorker(x);
         if (x.openAdv) rows.push([x.name, "Opening advance", "", "", x.openAdv]);
         if (x.openPay) rows.push([x.name, "Opening payable", "", "", x.openPay]);
-        Object.keys(x.att)
+        Object.keys(x.att || {})
           .sort()
-          .forEach(k =>
-            rows.push([x.name, "Attendance", k, x.att[k].s, W[x.att[k].s] * rateFor(x, k, x.att[k])])
-          );
-        x.adv.forEach(r => rows.push([x.name, "Advance",  r.date, r.note, r.amt]));
-        x.pay.forEach(r => rows.push([x.name, "Payment",  r.date, r.note, r.amt]));
+          .forEach(k => {
+            const entry = x.att[k];
+            if (entry) {
+              rows.push([x.name, "Attendance", k, entry.s, (W[entry.s] || 0) * rateFor(x, k, entry)]);
+            }
+          });
+        (x.adv || []).forEach(r => rows.push([x.name, "Advance",  r.date, r.note, r.amt]));
+        (x.pay || []).forEach(r => rows.push([x.name, "Payment",  r.date, r.note, r.amt]));
       });
-      S.bill.forEach(r =>
+      (S.bill || []).forEach(r =>
         rows.push(["", "Payable", r.due, r.who + (r.paid ? " (paid)" : ""), r.amt])
       );
       dl(
@@ -685,8 +798,8 @@ $("file").onchange = e => {
         api.get("/api/workers"),
         api.get("/api/bills"),
       ]);
-      S.workers = workers;
-      S.bill    = bill;
+      S.workers = (workers || []).map(normalizeWorker);
+      S.bill    = Array.isArray(bill) ? bill : [];
       S.cur     = S.workers[0] ? S.workers[0].id : null;
       tab = "home"; sh = null; render();
     } catch (x) {
@@ -709,8 +822,8 @@ async function boot() {
       api.get("/api/workers"),
       api.get("/api/bills"),
     ]);
-    S.workers = workers;
-    S.bill    = bill;
+    S.workers = (workers || []).map(normalizeWorker);
+    S.bill    = Array.isArray(bill) ? bill : [];
     if (S.workers.length) S.cur = S.workers[0].id;
     setNetStatus("online", "Cloud");
   } catch (err) {
