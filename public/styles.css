@@ -94,13 +94,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
@@ -108,7 +111,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
 }
 
 button {
@@ -340,9 +342,10 @@ button {
 
 /* ── Main View Container ── */
 main {
-  padding: 14px 16px;
+  padding: 14px 16px calc(115px + env(safe-area-inset-bottom, 0px));
   max-width: 600px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* ── Card System ── */

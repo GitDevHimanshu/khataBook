@@ -316,7 +316,7 @@ function att() {
       )
       .join("")}</div>
   <div class="card"><div class="cal">${h}</div></div>
-  <p class="sm" style="text-align:center">Pick a status, then tap dates. Half day pays ½ wage.</p>`
+  <p class="sm" style="text-align:center;margin-bottom:24px">Pick a status, then tap dates. Half day pays ½ wage.</p>`
   );
 }
 
