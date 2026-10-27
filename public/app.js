@@ -23,7 +23,20 @@ let S = { workers: [], cur: null, bill: [] },
   M = iso(today).slice(0, 7),
   sh = null,
   armed = null,
-  msg = "";
+  msg = "",
+  deferredPrompt = null;
+
+/* ── PWA Install Prompt Listener ── */
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  render();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredPrompt = null;
+  note("Khata App installed!");
+});
 
 /* ── Network & Sync status tracker ── */
 let pendingReqs = 0;
@@ -420,6 +433,7 @@ function sheet() {
   } else {
     b = `<h2>Backup &amp; data</h2>
       <div class="stack">
+        ${deferredPrompt ? `<button class="btn" data-act="install-app" style="background:var(--pri2)">📲 Install Khata App</button>` : ""}
         <button class="btn" data-act="bak">Save backup to phone</button>
         <button class="btn alt" data-act="rst">Restore backup</button>
         <button class="btn alt" data-act="exp">Export CSV</button>
@@ -773,6 +787,19 @@ document.addEventListener("click", async e => {
       await api.del("/api/data");
     }
 
+    /* ── PWA Install prompt ── */
+    else if (a === "install-app") {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === "accepted") {
+          note("Installing Khata App...");
+        }
+        deferredPrompt = null;
+        render();
+      }
+    }
+
   } catch (err) {
     note("Error: " + err.message);
   }
@@ -835,3 +862,19 @@ async function boot() {
 }
 
 boot();
+
+/* ════════════════════════════════════════
+   Service Worker Registration (PWA)
+════════════════════════════════════════ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(reg => {
+        console.log("Khata PWA Service Worker ready:", reg.scope);
+      })
+      .catch(err => {
+        console.warn("Service Worker registration failed:", err);
+      });
+  });
+}

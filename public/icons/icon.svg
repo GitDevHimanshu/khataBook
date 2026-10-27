@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="50%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="bookCover" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="spineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+
+  <g filter="url(#dropShadow)" transform="translate(106, 86)">
+    <rect x="20" y="0" width="280" height="340" rx="20" fill="url(#bookCover)"/>
+    <rect x="0" y="0" width="46" height="340" rx="10" fill="url(#spineGrad)"/>
+    <circle cx="23" cy="60" r="9" fill="#1e3a8a"/>
+    <circle cx="23" cy="130" r="9" fill="#1e3a8a"/>
+    <circle cx="23" cy="200" r="9" fill="#1e3a8a"/>
+    <circle cx="23" cy="270" r="9" fill="#1e3a8a"/>
+    <polygon points="210,0 236,0 236,90 223,76 210,90" fill="#ef4444"/>
+    <rect x="74" y="65" width="180" height="120" rx="12" fill="#ffffff" opacity="0.95"/>
+    <line x1="94" y1="95" x2="234" y2="95" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="94" y1="125" x2="234" y2="125" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="94" y1="155" x2="184" y2="155" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="164" cy="245" r="42" fill="#ffffff" opacity="0.2"/>
+    <text x="164" y="263" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle">₹</text>
+  </g>
+</svg>
